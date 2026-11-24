@@ -3,9 +3,11 @@
 
 The four story illustrations live in ../news-image/panels (drawn in-session for
 this day's news). This script composes them into one 1024x1024 newspaper front
-page with crisp PIL text: masthead and date, the four picture stories, and an
-"ALSO TODAY" strip for the rest of the day. Output is JPEG bytes in a file
-named entry.png (the bounty rules allow PNG or JPEG bytes under that name),
+page with crisp PIL text: masthead and date, and the four picture stories.
+There is no "ALSO TODAY" strip: at the ~300 px width the judge reads at, the
+strip's 18 px one-liners were unreadable clutter, so the space goes to the four
+stories instead — bigger pictures, bigger headlines. Output is JPEG bytes in a
+file named entry.png (the bounty rules allow PNG or JPEG bytes under that name),
 1024x1024 and under 1 MiB.
 """
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -70,30 +72,30 @@ RW = RX1 - RX0
 # ---------- left column: Nvidia ----------
 y = 124
 nvidia = fit(f'{PANELS}/media-generation-panel-nvidia-0-ed6cf337-0eb8-4f52-ba21-dbeffca0a46a.png',
-             LX1 - LX0, 360)
+             LX1 - LX0, 400)
 img.paste(nvidia, (LX0, y))
-y += 360 + 10
-d.text((LX0, y), 'TECHNOLOGY', font=font(SANS_B, 20), fill=RED)
-y += 28
-f_h = font(SANS_B, 44)
+y += 400 + 10
+d.text((LX0, y), 'TECHNOLOGY', font=font(SANS_B, 22), fill=RED)
+y += 30
+f_h = font(SANS_B, 48)
 y = draw_lines(d, wrap(d, 'HUANG IS BACK AT NVIDIA', f_h, LX1 - LX0),
-               f_h, LX0, y, INK, 50)
+               f_h, LX0, y, INK, 54)
 y += 6
-f_s = font(SANS, 21)
+f_s = font(SANS, 22)
 y = draw_lines(d, wrap(d, 'Board reinstates Jensen Huang as chief executive, '
                          '11 days after he resigned.', f_s, LX1 - LX0),
-               f_s, LX0, y, INK, 27)
+               f_s, LX0, y, INK, 28)
 left_end = y
 
 # ---------- right column: Poland, then Libya ----------
 def story(path, kicker, headline, y0):
-    im = fit(path, RW, 160)
+    im = fit(path, RW, 180)
     img.paste(im, (RX0, y0))
-    y = y0 + 160 + 8
-    d.text((RX0, y), kicker, font=font(SANS_B, 18), fill=RED)
-    y += 24
-    f = font(SANS_B, 24)
-    y = draw_lines(d, wrap(d, headline, f, RW), f, RX0, y, INK, 29)
+    y = y0 + 180 + 8
+    d.text((RX0, y), kicker, font=font(SANS_B, 20), fill=RED)
+    y += 26
+    f = font(SANS_B, 26)
+    y = draw_lines(d, wrap(d, headline, f, RW), f, RX0, y, INK, 31)
     return y
 
 y = 124
@@ -106,39 +108,18 @@ right_end = y
 
 # ---------- row 2: Iran banner with overlaid headline ----------
 row2 = max(left_end, right_end) + 12
-assert row2 + 190 + 12 + 116 <= 1012, f'layout overflow: row2={row2}'
+assert row2 + 260 <= 1012, f'layout overflow: row2={row2}'
 iran = fit(f'{PANELS}/media-generation-panel-iran-0-b7eba82d-f5f8-4cb6-a4e3-04f96fcf8e68.png',
-           1000, 190)
+           1000, 260)
 img.paste(iran, (12, row2))
 overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
 od = ImageDraw.Draw(overlay)
-od.rectangle([12, row2 + 190 - 46, 1012, row2 + 190], fill=(0, 0, 0, 175))
+od.rectangle([12, row2 + 260 - 48, 1012, row2 + 260], fill=(0, 0, 0, 175))
 img.paste(Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB'), (0, 0))
 d = ImageDraw.Draw(img)
-d.text((24, row2 + 190 - 40),
+d.text((24, row2 + 260 - 42),
        "IRAN DEFIES U.S. NAVAL BLOCKADE — Tehran vows to use 'all its tools'",
-       font=font(SANS_B, 23), fill=(255, 255, 255))
-
-# ---------- ALSO TODAY strip ----------
-y = row2 + 190 + 12
-d.text((12, y), 'ALSO TODAY', font=font(SANS_B, 18), fill=RED)
-y += 24
-f_it = font(SANS, 18)
-items_l = [
-    'CLIMATE TALKS COLLAPSE — UN talks in Turkey fail',
-    "MEXICO NABS 'EL CHAPO ISIDRO' — with U.S. help",
-    'RUSSIAN JETS ENTER S. KOREA AIRSPACE',
-]
-items_r = [
-    'VANUATU HIT BY 6.5 QUAKE — no tsunami threat',
-    'GAZA STRIKES KILL THREE — incl. a UN aid worker',
-    "SK HYNIX +20% — on Huang's Nvidia return",
-]
-for a, b in zip(items_l, items_r):
-    d.text((12, y), a, font=f_it, fill=INK)
-    d.text((518, y), b, font=f_it, fill=INK)
-    y += 26
-assert y <= 1012, f'strip overflow: y={y}'
+       font=font(SANS_B, 24), fill=(255, 255, 255))
 
 img.save(OUT, 'JPEG', quality=90, optimize=True)
-print('saved', OUT, os.path.getsize(OUT), 'bytes; row2 =', row2, 'end y =', y)
+print('saved', OUT, os.path.getsize(OUT), 'bytes; row2 =', row2, 'end y =', row2 + 260)
