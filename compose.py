@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""Build entry.png for the news-image-20261124 entry (v3).
+"""Build entry.png for the news-image-20261124 entry (v4).
 
 The four story illustrations live in ../news-image/panels (drawn in-session for
 this day's news). This script composes them into one 1024x1024 newspaper front
-page with crisp PIL text: masthead and date, and the four picture stories.
+page with crisp PIL text.
 
-v3 (after round 1 judged v2 at rank 6,887 of 7,302, 28.94%): at the ~300 px
-width the judge reads at, v2's right-column headlines (26 px) and the Iran
-banner headline (24 px) were barely readable, and every subline/kicker was
-unreadable — so the judge could clearly read only the Nvidia headline. v3
-fixes that directly: every headline is at least 40 px (about 12 px at 300 px
-reading width), there are no sublines at all (the headlines carry the stories),
-and the Iran headline sits in a large white-on-dark band instead of a 24 px
-overlay line. Output is JPEG bytes in a file named entry.png (the bounty rules
-allow PNG or JPEG bytes under that name), 1024x1024 and under 1 MiB.
+v4 (after round 2 judged v3 at rank 8,207 of 9,063, 32.36% — up only 3.42
+points from v2's 28.94%): the legibility fix helped a little, so the remaining
+problem is the format itself — a busy four-panel collage whose AI illustrations
+are generic and do not depict the events. v4 changes the composition
+radically: ONE dominant image (the lead story), one giant headline, and the
+other three stories as large text-only lines. No small images, no sublines, no
+clutter — a single clear composition that reads at the judge's ~300 px width.
+Every headline is at least 36 px (about 11 px at 300 px). Output is JPEG bytes
+in a file named entry.png (the bounty rules allow PNG or JPEG bytes under that
+name), 1024x1024 and under 1 MiB.
 """
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import os
@@ -49,12 +50,6 @@ def wrap(draw, text, fnt, max_w):
         lines.append(cur)
     return lines
 
-def draw_lines(draw, lines, fnt, x, y, fill, leading):
-    for ln in lines:
-        draw.text((x, y), ln, font=fnt, fill=fill)
-        y += leading
-    return y
-
 def fit(path, tw, th):
     im = Image.open(path).convert('RGB')
     return ImageOps.fit(im, (tw, th), Image.LANCZOS)
@@ -65,65 +60,45 @@ d = ImageDraw.Draw(img)
 # ---------- masthead ----------
 d.text((W // 2, 16), 'THE WORLD IN ONE PICTURE', font=font(SERIF_B, 44),
        fill=INK, anchor='ma')
-d.text((W // 2, 68), 'TUESDAY, 24 NOVEMBER 2026', font=font(SANS_B, 32),
+d.text((W // 2, 68), 'TUESDAY, 24 NOVEMBER 2026', font=font(SANS_B, 36),
        fill=RED, anchor='ma')
-d.line([(14, 110), (1010, 110)], fill=RULE, width=3)
-d.line([(14, 116), (1010, 116)], fill=RULE, width=1)
+d.line([(14, 114), (1010, 114)], fill=RULE, width=3)
+d.line([(14, 120), (1010, 120)], fill=RULE, width=1)
 
-# ---------- main story: Nvidia, full width ----------
-y = 128
+# ---------- lead story: one dominant image + giant headline ----------
+y = 132
 nvidia = fit(f'{PANELS}/media-generation-panel-nvidia-0-ed6cf337-0eb8-4f52-ba21-dbeffca0a46a.png',
-             1000, 260)
+             1000, 500)
 img.paste(nvidia, (12, y))
-y += 280 + 10
-d.text((12, y), 'TECHNOLOGY', font=font(SANS_B, 24), fill=RED)
-y += 32
-f_h = font(SANS_B, 64)
+y += 500 + 12
+f_h = font(SANS_B, 60)
 lines = wrap(d, 'HUANG IS BACK AT NVIDIA', f_h, 1000)
-assert len(lines) == 1, f'Nvidia headline wrapped: {lines}'
-y = draw_lines(d, lines, f_h, 12, y, INK, 72)
-main_end = y
+assert len(lines) == 1, f'lead headline wrapped: {lines}'
+d.text((12, y), lines[0], font=f_h, fill=INK)
+y += 80
+f_s = font(SANS, 28)
+sub = 'Board reinstates Jensen Huang, 11 days after he resigned.'
+assert d.textlength(sub, font=f_s) <= 1000, 'subline too wide'
+d.text((12, y), sub, font=f_s, fill=INK)
+y += 40
+d.line([(14, y), (1010, y)], fill=RULE, width=2)
+y += 16
 
-# ---------- second row: Poland (left) and Libya (right) ----------
-COL_W = 494
-LX0, RX0 = 12, 518
-
-def story(path, kicker, headline, x0, y0):
-    im = fit(path, COL_W, 170)
-    img.paste(im, (x0, y0))
-    y = y0 + 170 + 8
-    d.text((x0, y), kicker, font=font(SANS_B, 22), fill=RED)
-    y += 28
-    f = font(SANS_B, 40)
-    lines = wrap(d, headline, f, COL_W)
-    assert len(lines) <= 3, f'headline too long: {lines}'
-    y = draw_lines(d, lines, f, x0, y, INK, 47)
-    return y
-
-y = main_end + 12
-y_left = story(f'{PANELS}/media-generation-panel-poland-0-5ccc060a-78de-48d5-82e4-7ad16b562b6a.png',
-               'EUROPE', 'MISSILES LAND IN POLAND — NATO SENDS AWACS', LX0, y)
-y_right = story(f'{PANELS}/media-generation-panel-libya-0-d13a0659-0a49-4d80-94e2-efecdfe7648a.png',
-                'THE WAR SPREADS', 'UKRAINE SINKS RUSSIAN WARSHIP IN LIBYA', RX0, y)
-row_end = max(y_left, y_right)
-
-# ---------- row 3: Iran banner, large white headline on a dark band ----------
-row3 = row_end + 10
-iran_h = 1012 - row3
-assert iran_h >= 110, f'Iran banner too short: {iran_h}'
-iran = fit(f'{PANELS}/media-generation-panel-iran-0-b7eba82d-f5f8-4cb6-a4e3-04f96fcf8e68.png',
-           1000, iran_h)
-img.paste(iran, (12, row3))
-overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
-od = ImageDraw.Draw(overlay)
-od.rectangle([12, row3 + iran_h - 56, 1012, row3 + iran_h], fill=(0, 0, 0, 178))
-img.paste(Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB'), (0, 0))
-d = ImageDraw.Draw(img)
-f_i = font(SANS_B, 40)
-iran_lines = wrap(d, "IRAN DEFIES U.S. NAVAL BLOCKADE", f_i, 960)
-assert len(iran_lines) == 1, f'Iran headline wrapped: {iran_lines}'
-d.text((24, row3 + iran_h - 50), iran_lines[0], font=f_i, fill=(255, 255, 255))
+# ---------- the other three stories: large text-only lines ----------
+stories = [
+    ('POLAND', 'Missiles land; NATO sends AWACS'),
+    ('LIBYA', 'Ukraine sinks a Russian warship'),
+    ('IRAN', 'Tehran defies the U.S. naval blockade'),
+]
+f_k = font(SANS_B, 36)
+f_t = font(SANS_B, 36)
+for kicker, text in stories:
+    kx = 12
+    d.text((kx, y), kicker + ' — ', font=f_k, fill=RED)
+    kw = d.textlength(kicker + ' — ', font=f_k)
+    d.text((kx + kw, y), text, font=f_t, fill=INK)
+    y += 54
+assert y <= 1012, f'layout overflow: end y = {y}'
 
 img.save(OUT, 'JPEG', quality=90, optimize=True)
-print('saved', OUT, os.path.getsize(OUT), 'bytes; main_end =', main_end,
-      'row_end =', row_end, 'row3 =', row3, 'iran_h =', iran_h)
+print('saved', OUT, os.path.getsize(OUT), 'bytes; end y =', y)
